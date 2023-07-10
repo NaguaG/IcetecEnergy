@@ -1,0 +1,15 @@
+defmodule Main do
+  def main do
+    result = for n <- 1..100 do
+      case {rem(n, 3), rem(n, 5)} do
+        {0, 0} -> "Div3&5"
+        {0, _} -> "Div3"
+        {_, 0} -> "Div5"
+        {_, _} -> n
+      end
+    end
+    IO.inspect(result)
+  end
+end
+
+Main.main()
