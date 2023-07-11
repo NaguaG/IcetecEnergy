@@ -13,7 +13,7 @@ const convert = async () => {
             console.log(error);
         }
     };
-    const toDate = text => new Date(text);
+    const toDate = text => new Date(text * 1000);
     const toText = text => `${text.toLocaleDateString()} ${text.toLocaleTimeString()}`;
     fs.writeFile('./converted data/princeton.csv', 'validTimeUtc,irradianceGlobalHorizontal,irradianceDirectNormal\n', handler);
     readByName(name1).forecasts15Minute.validTimeUtc
