@@ -1,75 +1,115 @@
 const fs = require('fs');
-const name1 = './source data/Princeton(40.35,-74.66)-15min-e.json';
-const name2 = './source data/Wilmington(39.74,-75.55).json';
-
-const readByName = (name) => {
-    var data = fs.readFileSync(name, 'utf-8');
-    return JSON.parse(data);
+const filePaths = [
+    './source data/Wilmington(39.74,-75.55).json',
+    './source data/Princeton(40.35,-74.66)-15min-e.json'
+  ];
+const convertedFilePaths = [
+    './converted data/wilmington.csv',
+    './converted data/princeton.csv'
+] 
+const handler = (error) =>{
+    if(error){
+        console.log(error);
+    }
 }
+const timeZone = {
+    timeZone: 'America/New_York',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric'
+  };
+  
 
-const convert = async () => {
-    const handler = (error) =>{
-        if(error){
-            console.log(error);
+const writeRowsToFile = (filePath, row, cols, arr) => {
+  
+    for (var i = 0; i < cols; i++) {
+        const temp = new Array();
+        for (var j = 0; j < row; j++) {
+            temp.push(arr[j][i]);
         }
-    };
-    const toDate = text => new Date(text * 1000);
-    const toText = text => `${text.toLocaleDateString()} ${text.toLocaleTimeString()}`;
-    fs.writeFile('./converted data/princeton.csv', 'validTimeUtc,irradianceGlobalHorizontal,irradianceDirectNormal\n', handler);
-    readByName(name1).forecasts15Minute.validTimeUtc
-      .map(toDate)
-      .map(toText)
-      .forEach((text, index) => {
-        const igh = readByName(name1).forecasts15Minute.irradianceGlobalHorizontal[index];
-        const idn = readByName(name1).forecasts15Minute.irradianceDirectNormal[index];
-        const proc = readByName(name1).metadata.procTime[index];
-        const units = readByName(name1).metadata.units[index];
-        const sTime = readByName(name1).metadata.serviceTime[index];
-        const lat = readByName(name1).metadata.latitude[index];
-        const long = readByName(name1).metadata.longitude[index];
-        const it = readByName(name1).metadata.initTimeUtc[index];
-        const el = readByName(name1).metadata.elevation[index];
-        const lan = readByName(name1).metadata.landuse[index];
-        const rec = readByName(name1).metadata.resource[index];
-        const vs = readByName(name1).metadata.version[index];
-        const req = readByName(name1).metadata.requestId[index];
-      
-        fs.writeFile('./converted data/princeton.csv', `${text},${igh},${idn},${proc},${units},${sTime},${lat},${long},${it},${el},${lan},${rec},${vs},${req}\n`, { flag: 'a+' }, handler);
-      });
+        temp.push('\n');
+        const tempString = temp.join(',');
+        fs.writeFile(filePath, tempString, { flag: 'a+' }, handler);
+    }
+};
 
-    fs.writeFile('./converted data/wilmington.csv', 'validTimeLocal,cloudCover, dayOfWeek, dayOrNight, expirationTimeUtc,iconCodeExtend,precipChance,precipType,pressureMeanSeaLevel,qpf,qpfSnow,relativeHumidity,temperature,temperatureDewPoint,temperatureHeatIndex,temperatureWindChill,uvDescription,uvIndex,validTimeUtc,visibility,windDirection,windDirectionCardinal,windGust,windSpeed,wxPhraseLong,wxPhraseShort,wxSeverity\n', handler);
-    readByName(name2).validTimeLocal
-      .map(toDate)
-      .map(toText)
-      .forEach((text, index) => {
-        const temp = readByName(name2).temperature[index];
-        const dayOfWeek = readByName(name2).dayOfWeek[index];
-        const dayOrNight = readByName(name2).dayOrNight[index];
-        const expTimeUtc = readByName(name2).expirationTimeUtc[index];
-        const iconCodeExtend = readByName(name2).iconCodeExtend[index];
-        const precipChance = readByName(name2).precipChance[index];
-        const precipType = readByName(name2).precipType[index];
-        const pressure = readByName(name2).pressureMeanSeaLevel[index];
-        const qpf = readByName(name2).qpf[index];
-        const qpfSnow = readByName(name2).qpfSnow[index];
-        const humidity = readByName(name2).relativeHumidity[index];
-        const tempDewPoint = readByName(name2).temperatureDewPoint[index];
-        const tempHeatIndex = readByName(name2).temperatureHeatIndex[index];
-        const tempWindChill = readByName(name2).temperatureWindChill[index];
-        const uvDesc = readByName(name2).uvDescription[index];
-        const uvIndex = readByName(name2).uvIndex[index];
-        const validTimeUtc = readByName(name2).validTimeUtc[index];
-        const visibl = readByName(name2).visibility[index];
-        const windDir = readByName(name2).windDirection[index];
-        const windDirCard = readByName(name2).windDirectionCardinal[index];
-        const windGust = readByName(name2).windGust[index];
-        const windSpeed = readByName(name2).windSpeed[index];
-        const wxPhraseLong = readByName(name2).wxPhraseLong[index];
-        const wxPhraseShort = readByName(name2).wxPhraseShort[index];
-        const wxSeverity = readByName(name2).wxSeverity[index];
-        fs.writeFile('./converted data/wilmington.csv', `${text},${temp},${dayOfWeek},${dayOrNight},${expTimeUtc},${iconCodeExtend},${precipChance},${precipType},${pressure},${qpf},${qpfSnow},${humidity},${tempDewPoint},${tempHeatIndex},${tempWindChill},${uvDesc},${uvIndex},${validTimeUtc},${visibl},${windDir},${windDirCard},${windGust},${windSpeed},${wxPhraseLong},${wxPhraseShort},${wxSeverity}\n`, { flag: 'a+' }, handler);
-      });
-      console.log('Successfully converted.')
-}
-convert();
+const fileReadPromises = filePaths.map((filePath, index) => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+            reject(err);
+            } else {
+                const json = JSON.parse(data);
+                if (json.hasOwnProperty('cloudCover')) {
+                    console.log('Wilmington');
+                    var row = Object.keys(json).length;
+                    var cols = 360;
+                    let arr = Array.from(Array(row), () => new Array(cols));
+                    var rowIdx = 0;
+                    const headers = new Array();
+                    for (var key in json) {
+                        headers.push(key);
+                        if (json.hasOwnProperty(key)) {
+                            var val = json[key];
+                            for(var i = 0; i < val.length; i++){
+                                if(key === 'validTimeUtc'){
+                                    var date = new Date(json[key][i] * 1000);
+                                    var formattedDate = date.toLocaleString('en-US', timeZone).replace(/,/g, '');
+                                    console.log(formattedDate);
+                                    arr[rowIdx][i] = formattedDate;
+                                }else{
+                                    arr[rowIdx][i] = json[key][i];
+                                }
+                            }
+                            rowIdx++;
+                        } 
+                    }
+                    const headersString = headers.join(',');
+                    fs.writeFile(convertedFilePaths[index], headersString, { flag: 'a+' }, handler);
+                    writeRowsToFile(convertedFilePaths[index], row, cols, arr);
+                    resolve(json);
+                   
+                } else {
+                    console.log('Princeton');
+                    var row = 3;
+                    var cols = 673;
+                    let arr = Array.from(Array(row), () => new Array(cols));
+                    let headers = new Array();
 
+                    for (var key in json) {
+                        if (json.hasOwnProperty(key)) {
+                            if(key === 'forecasts15Minute'){   
+                                var rowIdx = 0;                
+                                for (var k in json[key]) {
+                                    headers.push(k);
+                                    var val = json[key][k];
+                                    for(var i = 0; i < val.length; i++){
+                                        if(k === 'validTimeUtc'){
+                                            var date = new Date(json[key][k][i] * 1000);
+                                            var formattedDate = date.toLocaleString('en-US', timeZone).replace(/,/g, '');
+                                            arr[rowIdx][i] = formattedDate;
+                                        }else{
+                                            arr[rowIdx][i] = json[key][k][i];
+                                        }
+                                    }
+                                    rowIdx++;
+                                }
+                                headers.push('\n');
+                                console.log(arr);
+                            }           
+                        }
+                    }   
+                    const headersString = headers.join(',');
+                    console.log(headersString);
+                    fs.writeFile(convertedFilePaths[index], headersString, { flag: 'a+' }, handler);
+                    writeRowsToFile(convertedFilePaths[index], row, cols, arr);
+                    resolve(json); 
+                }  
+            }
+        });
+    });
+});
