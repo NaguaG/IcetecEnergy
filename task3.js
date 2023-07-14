@@ -23,16 +23,31 @@ const timeZone = {
     second: 'numeric'
 };
 
+/*
+The order is OK now, but the Wilmington header is still bad. You have to check the file before pushing it to GitHub.
+Here is a screenshot of even the GitHub web page telling us that the header is bad:
 
-const writeRowsToFile = (filePath, row, cols, arr) => {
+2. csv files should not have a dangling comma at the end of every line:
+validTimeUtc,irradianceGlobalHorizontal,irradianceDirectNormal,
+Thursday October 6 2022 at 1:00:00 PM,706.3,925.8,
+Thursday October 6 2022 at 1:15:00 PM,705.3,924.8,
+Thursday October 6 2022 at 1:30:00 PM,697.6,925.3,
 
-    for (var i = 0; i < cols; i++) {
+Also, in the code I am finding strange row and column variables like this:
+ var row = 3;
+ var cols = 673;
+
+Can you explain these, like are there really only 3 rows, why are they necessary, and what happens when JSON changes size?
+*/
+
+const writeRowsToFile = (filePath, headersString, arr) => {
+    fs.writeFileSync(filePath, headersString, { flag: 'a+' }, handler);
+    for (var i = 0; i < arr[0].length; i++) {
         const temp = new Array();
-        for (var j = 0; j < row; j++) {
+        for (var j = 0; j < arr.length; j++) {
             temp.push(arr[j][i]);
         }
-        temp.push('\n');
-        const tempString = temp.join(',');
+        const tempString = temp.join(',') + '\n';
         fs.writeFileSync(filePath, tempString, { flag: 'a+' }, handler);
     }
 };
@@ -46,82 +61,91 @@ const fileReadPromises = filePaths.map((filePath, index) => {
                 const json = JSON.parse(data);
                 if (json.hasOwnProperty('cloudCover')) {
                     console.log('Wilmington');
-                    var row = Object.keys(json).length;
-                    var cols = 360;
-                    let arr = Array.from(Array(row), () => new Array(cols));
+
+                    //2 dimensional array to keep JSON object value array
+                    var rowSize = Object.keys(json).length;
+                    let arr = new Array(rowSize);
+                    for (let i = 0; i < rowSize; i++) { arr[i] = []; } 
+
                     var rowIdx = 0;
                     const headers = new Array();
                     const keys = Object.keys(json);
 
                     //loop through keys in Wilmington
-                    for (var keyIndex = 0; keyIndex< keys.length; keyIndex++) {
-                        const currentKey = keys[keyIndex];
-                        headers.push(currentKey);
+                    for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+                        const key = keys[keyIndex];
+                        headers.push(key);
                         dateCol = 0;
-                        var val = json[currentKey];
+                        var valueArray = json[key];
 
-                        //if key is validTimeUtc
-                        if (currentKey === 'validTimeUtc') {
-                            console.log('validTimeUtc');
-                            for (var i = 0; i < val.length; i++) {
-                                var date = new Date(val[i] * 1000);
+                        //validTimeUtc field
+                        if (key === 'validTimeUtc') {
+                            for (var i = 0; i < valueArray.length; i++) {
+                                var date = new Date(valueArray[i] * 1000);
                                 var formattedDate = date.toLocaleString('en-US', timeZone).replace(/,/g, '');
                                 arr[rowIdx][i] = formattedDate;
                                 dateCol = rowIdx;
                             }
-                        } 
-                        //other keys
+                        }
+                        //other fields
                         else {
-                            console.log('Other keys');
-                            for (var i = 0; i < val.length; i++) {
-                                arr[rowIdx][i] = val[i];
+                            for (var i = 0; i < valueArray.length; i++) {
+                                arr[rowIdx][i] = valueArray[i];
                             }
                         }
                         rowIdx++;
-                        console.log(arr);
 
                         //swap date column and first column
                         [arr[0], arr[dateCol]] = [arr[dateCol], arr[0]];
                         [headers[0], headers[dateCol]] = [headers[dateCol], headers[0]];
                     }
-                    const headersString = headers.join(',');
-                    fs.writeFileSync('./converted data/wilmington.csv', headersString, { flag: 'a+' }, handler);
-                    writeRowsToFile('./converted data/wilmington.csv', row, cols, arr);
+                    const headersString = headers.join(',') + '\n';                    
+                    writeRowsToFile('./converted data/wilmington.csv', headersString, arr);
                     resolve(json);
 
                 } else {
                     console.log('Princeton');
-                    var row = 3;
-                    var cols = 673;
-                    let arr = Array.from(Array(row), () => new Array(cols));
-                    let headers = new Array();
+                    for (var outerKey in json) {
 
-                    for (var key in json) {
-                        if (key === 'forecasts15Minute') {
+                        //ignore metadata, read 'forecasts15Minute' only
+                        if (outerKey === 'forecasts15Minute') {
+                            let headers = new Array();
+                            
+                            //2 dimensional array to keep JSON object value array
+                            var rowsize = Object.keys(json[outerKey]).length;
+                            let arr = new Array(rowsize);
+                            for (let i = 0; i < rowsize; i++) { arr[i] = []; } 
+
                             var rowIdx = 0;
-                            for (var k in json[key]) {
-                                headers.push(k);
-                                var val = json[key][k];
-                                for (var i = 0; i < val.length; i++) {
-                                    if (k === 'validTimeUtc') {
-                                        var date = new Date(val[i] * 1000);
+                            for (var key in json[outerKey]) {
+                                headers.push(key);
+                                var valueArray = json[outerKey][key];
+
+                                //validTimeUtc field
+                                if (key === 'validTimeUtc') {
+                                    for (var i = 0; i < valueArray.length; i++) {
+                                        var date = new Date(valueArray[i] * 1000);
                                         var formattedDate = date.toLocaleString('en-US', timeZone).replace(/,/g, '');
-                                        arr[rowIdx][i] = formattedDate;
-                                    } else {
-                                        arr[rowIdx][i] = val[i];
+                                        arr[rowIdx].push(formattedDate);
+                                    }
+                                }
+
+                                //other fields
+                                else {
+                                    for (var i = 0; i < valueArray.length; i++) {
+                                        arr[rowIdx].push(valueArray[i]);
                                     }
                                 }
                                 rowIdx++;
                             }
-                            headers.push('\n');
-                            // console.log(arr);
+                            const headersString = headers.join(',') + '\n';
+                            writeRowsToFile('./converted data/princeton.csv', headersString, arr);
+                            resolve(json);
                         }
+
+
                     }
-                    const headersString = headers.join(',');
-                    // console.log(headersString);
-                    fs.writeFileSync('./converted data/princeton.csv', headersString, { flag: 'a+' }, handler);
-                    writeRowsToFile('./converted data/princeton.csv', row, cols, arr);
-                    resolve(json);
+
                 }
             }
         });
